@@ -15,7 +15,7 @@ public class Server {
  		list = new Todo();
 
         int portNumber = Integer.parseInt(args[0]);
-        switch (portNumber) {
+        switch (portNumber) { //right now port number defines the server role
         	case 9001: System.out.println("<primary> Starting as Primary"); primaryMain(args); break;
         	case 9002: System.out.println("<backup> Starting as Backup"); backupMain(args); break;
         	default: System.out.println("Port unrecognised! (varying ports to be included later)");
@@ -24,21 +24,23 @@ public class Server {
 
     private static void primaryMain(String[] args) throws IOException {
     	int portNumber = Integer.parseInt(args[0]);
-        System.out.println("<primary> Waitin for client");
+        System.out.println("<primary> Waiting for client");
         while (true) {
     	    try {
+    	    	//wait for connection from client
 				ServerSocket serverSocket = new ServerSocket(portNumber);
 				Socket clientSocket = serverSocket.accept();
 				ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
 				ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
 			
         	    String message = (String) in.readObject();
-				System.out.println("<primary> Read: "+message);
+				System.out.println("<primary> Recieved: "+message);
 				switch (message.charAt(0)) {
-					case 'W': {
+					case 'W': { //Write value to list
 						out.writeObject("Added \""+message.substring(2,message.length())+"\""); 
 						list.add(message.substring(2,message.length())); 
 
+						//Send the same message to backup and wait for response
 						Socket backupSocket = new Socket("localhost", 9002); //assumes location and port of backup
 						ObjectOutputStream backupOut = new ObjectOutputStream(backupSocket.getOutputStream());
             			ObjectInputStream backupIn = new ObjectInputStream(backupSocket.getInputStream());
@@ -47,12 +49,13 @@ public class Server {
             			String response = (String) backupIn.readObject();
             			System.out.println("<primary> Backup response: "+response+" [should be ACK]");
             			backupSocket.close();
-            			System.out.println("Current state: "+list.getList());
+            			System.out.println("<primary> Current state: "+list.getList());
 						break;
 					}
-					case 'R': {
+					case 'R': { //Read list
 						out.writeObject(list.getList()); 
 
+						//Send the same message to backup and wait for response
 						Socket backupSocket = new Socket("localhost", 9002); //assumes location and port of backup
 						ObjectOutputStream backupOut = new ObjectOutputStream(backupSocket.getOutputStream());
             			ObjectInputStream backupIn = new ObjectInputStream(backupSocket.getInputStream());
@@ -61,11 +64,11 @@ public class Server {
             			String response = (String) backupIn.readObject();
             			System.out.println("<primary> Backup response: "+response+" [should be ACK]");
             			backupSocket.close();
-            			System.out.println("Current state: "+list.getList());
+            			System.out.println("<primary> Current state: "+list.getList());
 
 						break;
 					}
-					default: out.writeObject("Unrecognised query!");
+					default: System.out.println("<primary> Unrecognised query"); out.writeObject("Unrecognised query!");
 				}
 				clientSocket.close();
 				serverSocket.close();
@@ -81,20 +84,22 @@ public class Server {
 
     private static void backupMain(String[] args) throws IOException {
     	int portNumber = Integer.parseInt(args[0]);
-        System.out.println("<backup> Waitin for primary");
+        System.out.println("<backup> Waiting for primary");
         while (true) {
     	    try {
+    	    	//wait for connection from primary
 				ServerSocket serverSocket = new ServerSocket(portNumber);
 				Socket clientSocket = serverSocket.accept();
 				ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
 				ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
 			
         	    String message = (String) in.readObject();
-				System.out.println("<backup> Read: "+message);
+				System.out.println("<backup> Recieved: "+message);
+				//Same process as primary, but returns ACK instead
 				switch (message.charAt(0)) {
-					case 'W': out.writeObject("ACK"); list.add(message.substring(2,message.length())); System.out.println("Current state: "+list.getList()); break;
-					case 'R': out.writeObject("ACK"); System.out.println("Current state: "+list.getList()); break;
-					default: out.writeObject("Unrecognised query!");
+					case 'W': out.writeObject("ACK"); list.add(message.substring(2,message.length())); System.out.println("<backup> Current state: "+list.getList()); break;
+					case 'R': out.writeObject("ACK"); System.out.println("<backup> Current state: "+list.getList()); break;
+					default: System.out.println("<backup> Unrecognised query"); out.writeObject("Unrecognised query!");
 				}
 				clientSocket.close();
 				serverSocket.close();

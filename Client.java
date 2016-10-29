@@ -18,10 +18,11 @@ public class Client {
             ObjectOutputStream out = new ObjectOutputStream(kkSocket.getOutputStream());
             ObjectInputStream in = new ObjectInputStream(kkSocket.getInputStream());
             
-            //Message either "R" or "W <item>"
-            out.writeObject("R");
+            System.out.println("Please enter query - 'R' or 'W <item to add>'");
+            String send = System.console().readLine();
+            out.writeObject(send);
             String message = (String) in.readObject();
-            System.out.println("Read: "+message);
+            System.out.println("Recieved: "+message);
 
         }   catch (ClassNotFoundException e) {
             System.out.println("Read object was not of the expected class");
