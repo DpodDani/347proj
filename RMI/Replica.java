@@ -16,31 +16,55 @@ public class Replica extends UnicastRemoteObject
 
     public static void main(String[] args){
 
-	if (args.length != 1) {
+	/*if (args.length != 1) {
             System.err.println("Usage: java Server <port number>");
             System.exit(1);
-        }
-	if(args[0].equals("9001")) {
-	  startServer("9001");  
-	}else{
-	    startServer("9002");
-	}
-
-    }
-
-    public static void startServer(String port){	
+        }*/
+	
 	try{
-	    Registry reg = LocateRegistry.createRegistry(Integer.parseInt(port));
-	    Replica server = new Replica();
-	    reg.rebind("Primary", server);
+		startServer("9001");  
 	}catch(Exception e){
-	    e.printStackTrace();
+		try{
+			startServer("9002");
+		}catch(Exception p){
+
+		}
+		
 	}
+	    
+	}
+
+
+    public static void startServer(String port) throws RemoteException{	
+    	if(port.equals("9001")){
+			try{
+			    Registry reg = LocateRegistry.createRegistry(Integer.parseInt(port));
+			    Replica server = new Replica();
+			    reg.rebind("Primary", server);
+			}catch(ExportException e){
+			    e.printStackTrace();
+			    try{
+				    Registry reg = LocateRegistry.createRegistry(9002);
+				    Replica server = new Replica();
+				    reg.rebind("Backup", server);
+				}catch(Exception p){
+				    p.printStackTrace();
+				}
+			}
+		}else{
+			try{
+			    Registry reg = LocateRegistry.createRegistry(Integer.parseInt(port));
+			    Replica server = new Replica();
+			    reg.rebind("Backup", server);
+			}catch(Exception e){
+			    e.printStackTrace();
+			}
+		}
     }    
     
     public boolean write (String data)  {
-	database.add(data);
-	return true;
+		database.add(data);
+		return true;
     }
 
     public String read() {
