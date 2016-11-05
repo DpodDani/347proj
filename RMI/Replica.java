@@ -1,4 +1,6 @@
 import java.rmi.*;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 //import java.rmi.RemoteException;
 import java.rmi.server.*;
 import java.util.*;
@@ -13,14 +15,28 @@ public class Replica extends UnicastRemoteObject
     }
 
     public static void main(String[] args){
+
+	if (args.length != 1) {
+            System.err.println("Usage: java Server <port number>");
+            System.exit(1);
+        }
+	if(args[0].equals("9001")) {
+	  startServer("9001");  
+	}else{
+	    startServer("9002");
+	}
+
+    }
+
+    public static void startServer(String port){	
 	try{
-	   // LocateRegistry.createRegistry(7000);
+	    Registry reg = LocateRegistry.createRegistry(Integer.parseInt(port));
 	    Replica server = new Replica();
-	    Naming.rebind("ServerImpl", server);
+	    reg.rebind("Primary", server);
 	}catch(Exception e){
 	    e.printStackTrace();
 	}
-    }
+    }    
     
     public boolean write (String data)  {
 	database.add(data);

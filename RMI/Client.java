@@ -1,6 +1,7 @@
 import java.rmi.Naming; 
 import java.rmi.RemoteException;
-import java.rmi.RMISecurityManager;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 
 
 public class Client{
@@ -8,7 +9,8 @@ public class Client{
 
 //	System.setSecurityManager(new SecurityManager());
 	try{
-	    TransactionHandler object = (TransactionHandler) Naming.lookup("ServerImpl");
+	    Registry reg = LocateRegistry.getRegistry(9001);
+	    TransactionHandler object = (TransactionHandler) reg.lookup("Primary");
 	    object.write("Daniel ");
 	    object.write("is ");
 	    object.write("tall");
