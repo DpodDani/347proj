@@ -50,7 +50,8 @@ public class Replica extends UnicastRemoteObject
 	    sb.append(s +", ");
 	}
 	sb.append("]");
-	return sb.toString();
+	return (sb.length() > 0) ? sb.substring(0, sb.length() - 3) + "]" : "";
+ 
     }
 
     public void join(String backup) {
