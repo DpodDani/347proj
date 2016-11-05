@@ -16,55 +16,35 @@ public class Replica extends UnicastRemoteObject
 
     public static void main(String[] args){
 
-	/*if (args.length != 1) {
-            System.err.println("Usage: java Server <port number>");
-            System.exit(1);
-        }*/
+	int port = Integer.parseInt(args[0]);
+	String serverName = (port == 9001) ? "Primary" : "Backup";
 	
-	try{
-		startServer("9001");  
-	}catch(Exception e){
-		try{
-			startServer("9002");
-		}catch(Exception p){
-
-		}
-		
-	}
-	    
+	try {
+	    startServer(port, serverName);
+	} catch (Exception e) {
+	    System.err.println(serverName + " start up error: " + e);
+	    e.printStackTrace();
+	} finally {
+	    System.out.println(serverName + " successfully started");
 	}
 
+    }
 
-    public static void startServer(String port) throws RemoteException{	
-    	if(port.equals("9001")){
-			try{
-			    Registry reg = LocateRegistry.createRegistry(Integer.parseInt(port));
-			    Replica server = new Replica();
-			    reg.rebind("Primary", server);
-			}catch(ExportException e){
-			    e.printStackTrace();
-			    try{
-				    Registry reg = LocateRegistry.createRegistry(9002);
-				    Replica server = new Replica();
-				    reg.rebind("Backup", server);
-				}catch(Exception p){
-				    p.printStackTrace();
-				}
-			}
-		}else{
-			try{
-			    Registry reg = LocateRegistry.createRegistry(Integer.parseInt(port));
-			    Replica server = new Replica();
-			    reg.rebind("Backup", server);
-			}catch(Exception e){
-			    e.printStackTrace();
-			}
-		}
+
+    public static void startServer(int port, String serverName) throws RemoteException{
+	try {
+	    Registry reg = LocateRegistry.createRegistry(port);
+	    Replica server = new Replica();
+	    reg.rebind(serverName, server);	    
+	} catch (Exception e) {
+	    System.err.println(serverName + " is not free in the registry");
+	    e.printStackTrace();
+	}
     }    
     
-    public boolean write (String data)  {
-		database.add(data);
-		return true;
+    public boolean write (String data) {
+	database.add(data);
+	return true;
     }
 
     public String read() {
@@ -73,8 +53,7 @@ public class Replica extends UnicastRemoteObject
 	for(String s: database){
 	    sb.append(s +", ");
 	}
-	sb.append("]");
-	return (sb.length() > 0) ? sb.substring(0, sb.length() - 3) + "]" : "";
+	return (sb.length() > 0) ? sb.substring(0, sb.length() - 2) + "]" : "";
  
     }
 
@@ -91,4 +70,3 @@ public class Replica extends UnicastRemoteObject
     }
 
 }
-
