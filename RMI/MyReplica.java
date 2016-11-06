@@ -28,14 +28,14 @@ public class MyReplica extends UnicastRemoteObject implements Replica {
 	    Registry registry = LocateRegistry.getRegistry(1099);
 	    registry.lookup("Primary");
 	    System.out.println("Creating backup");
-	    createRegistryEntry("Backup");
+	    rebindRegistryEntry("Backup");
 	    isPrimary = false;
 	} catch (Exception e) {
 	    System.err.println("Primary not found in registry");
 	    System.out.println("Creating primary");
 	    isPrimary = true;
 	    try {
-		createRegistryEntry("Primary");
+		rebindRegistryEntry("Primary");
 	    } catch (Exception f) {
 		System.err.println("Could not create primary");
 	    }
@@ -47,13 +47,14 @@ public class MyReplica extends UnicastRemoteObject implements Replica {
     }
 
 
-    public static void createRegistryEntry(String nodeName) throws RemoteException{
+    public static void rebindRegistryEntry(String nodeName) throws RemoteException{
 	try {
 	    Registry registry = LocateRegistry.getRegistry(1099);
 	    // Creates a remote interface object
 	    MyReplica node = new MyReplica();
 	    // Binds it in the registry <-- this is where the Primary or Backup are registered in the registry
 	    registry.rebind(nodeName, node);	    
+	    node.join("Primary");
 	} catch (Exception e) {
 	    System.err.println(nodeName + " is not free in the registry");
 	    e.printStackTrace();
@@ -75,12 +76,29 @@ public class MyReplica extends UnicastRemoteObject implements Replica {
  
     }
 
-    public void join(String backup) {
+    public void join(String primary){
+    	if(!isPrimary){
+    		try{
+	    		Registry reg = LocateRegistry.getRegistry(1099);
+		    	Replica object = (Replica) reg.lookup(primary);
+		    	object.stateTransfer();
+		    }catch(Exception e){
+
+		    }
+    	}
 	
     }
 
     public void stateTransfer() {
-	
+			if (isPrimary) {
+				try{
+					Registry reg = LocateRegistry.getRegistry(1099);
+		    	Replica object = (Replica) reg.lookup("Primary");
+		    	reg.rebind("Backup", object);	
+		    }catch(Exception e){
+		    	e.printStackTrace();
+		    }
+			}
     }
 
     public void kill() {
