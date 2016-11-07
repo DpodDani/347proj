@@ -10,6 +10,8 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.*;
 import java.util.*;
+import java.io.File;
+import java.io.*;
 
 public class MyReplica extends UnicastRemoteObject implements Replica {
     
@@ -20,7 +22,7 @@ public class MyReplica extends UnicastRemoteObject implements Replica {
 	super();
     }
 
-    public static void main(String[] args){
+    public static void main(String[] args) throws IOException, InterruptedException {
 
 	// If a Primary node already exists in the registry, a Backup node is created, otherwise a Primary node is created
 	// Note: the lookup() function returns an error when it cannot find the specified hostname in the registry. The presence of this error is used as an indicator for whether a Primary node already exists in the registry.
@@ -40,9 +42,22 @@ public class MyReplica extends UnicastRemoteObject implements Replica {
 		System.err.println("Could not create primary");
 	    }
 	}
-
+	System.out.println(Integer.parseInt(new File("/proc/self").getCanonicalFile().getName()));
 	System.out.println("Service started");
 	System.out.println("Primary status: " + isPrimary);
+
+	Runtime.getRuntime().addShutdownHook(new Thread()
+	{
+	    @Override
+	    public void run(){
+		System.out.println("Shutdown hook ran!");
+		System.out.println("Closed Primary: " + isPrimary);
+	    }
+	});
+
+	while (true) {
+	    Thread.sleep(1000);
+	}
 
     }
 
@@ -86,10 +101,17 @@ public class MyReplica extends UnicastRemoteObject implements Replica {
     public void kill() {
 	try {
 	   Registry reg = LocateRegistry.getRegistry(1099);
-	    reg.unbind("Primary");
-	    reg.unbind("Backup");
+	    if (!isPrimary){
+		Replica backup = (Replica) reg.lookup("Backup");
+		reg.rebind("Primary", backup);
+		System.out.println("Primary has been killed");
+		System.out.println("Backup has become the new Primary");
+	    } else {
+		reg.unbind("Backup");
+		System.out.println("Backup has been killed");
+	    }
 	} catch (Exception e) {
-	    System.err.println("kill function not working");
+	    System.err.println("Kill function not working");
 	}
     System.out.println("Primary and backup have been killed in the registry");
     }

@@ -27,13 +27,11 @@ public class Client{
 	    object.write("is ");
 	    object.write("tall");
 	    System.out.println(object.read());
-	    // This kill() function is only here for testing purposes
-	    object.kill();
 	}catch(Exception e){
 	    System.err.println("Client couldn't connect Primary node in registry");
 	    // If the Client cannot find the Primary node in the registry, it assumes the Primary node is down and therefore forwards the request to the Backup node
 	    try{
-		Registry reg = LocateRegistry.getRegistry(9002);
+		Registry reg = LocateRegistry.getRegistry(1099);
 		Replica object = (Replica) reg.lookup("Backup");
 		object.write("Daniel ");
 		object.write("is ");
