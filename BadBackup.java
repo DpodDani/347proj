@@ -1,23 +1,34 @@
-import java.net.*;
-import java.io.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
+import java.util.ArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
  
 public class BadBackup {
 
 	/*	
-		Works as a normal backup but takes a while to respond
+		Works as a normal backup but doesn't respond
+        TimeUnit.SECONDS.sleep(5); //Wait for 5 seconds, or over whatever the wait period is
+
 	*/
 
 	private static Todo list;
 
     public static void main(String[] args) throws IOException {
          
-        if (args.length != 1) {
-            System.err.println("Usage: java BadBackup <port number>");
+        if (args.length != 2) {
+            System.err.println("Usage: java BadBackup <port number> <database filename>");
             System.exit(1);
         }
  		
- 		list = new Todo();
+ 		list = new Todo(args[1]);
 
         int portNumber = Integer.parseInt(args[0]);
         switch (portNumber) { //right now port number defines the server role
@@ -27,37 +38,59 @@ public class BadBackup {
     }
 
     private static void backupMain(String[] args) throws IOException {
-    	int portNumber = Integer.parseInt(args[0]);
+        int portNumber = Integer.parseInt(args[0]);
         System.out.println("<badbackup> Waiting for primary");
-        while (true) {
-    	    try {
-    	    	//wait for connection from primary
-				ServerSocket serverSocket = new ServerSocket(portNumber);
-				Socket clientSocket = serverSocket.accept();
-				ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
-				ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
-			    TimeUnit.SECONDS.sleep(5); //Wait for 5 seconds, or over whatever the wait period is
-
-        	    String message = (String) in.readObject();
-				System.out.println("<badbackup> Recieved: "+message);
-				switch (message.charAt(0)) {
-					case 'W': list.add(message.substring(2,message.length())); out.writeObject("ACK"); break;
-					case 'R': out.writeObject("ACK"); break;
-					default: System.out.println("<badbackup> Unrecognised query"); out.writeObject("Unrecognised query!");
-				}
-				System.out.println("<badbackup> Current state: "+list.getList());
-				clientSocket.close();
-				serverSocket.close();
-			} catch (ClassNotFoundException e) {
-				System.out.println("Read object was not of the expected class");
-        	    System.out.println(e.getMessage());
-        	} catch (IOException e) {
-    	        System.out.println("Exception caught when trying to listen on port " + portNumber + " or listening for a connection");
-        	    System.out.println(e.getMessage());
-    	    } catch (InterruptedException e) {
-    	    	System.out.println("Interrupted, probably while waiting");
-        	    System.out.println(e.getMessage());
-    	    }
-	    }
+        ServerSocket serverSocket = new ServerSocket(portNumber);
+        try {
+            Socket clientSocket = serverSocket.accept();
+            System.out.println("<badbackup> Connected to primary!");
+            ThreadPool.executor.execute(new BadBackupThread(clientSocket, list)); //begin a thread to accept messages
+        } catch (IOException e) {
+            System.out.println("Exception caught when trying to listen on port " + portNumber + " or listening for a connection");
+            System.out.println(e.getMessage());
+            //clientSocket.close();
+            serverSocket.close();
+        }
     }
+}
+
+class BadBackupThread implements Runnable { //thread used by the server
+    private Socket socket;
+    private Todo list;
+
+    public BadBackupThread(Socket socket, Todo list) {
+        this.socket = socket;
+        this.list = list;
+    }
+
+    public void run() {
+        try{
+            //set up I/O streams
+            ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+            ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+            while(true) { //repeatedly wait for a message to arrive and take action based upon what the message is
+                String message = (String) in.readObject();
+                TimeUnit.SECONDS.sleep(5);
+                System.out.println("<badbackup> Recieved: "+message);
+                //Same process as primary, but returns ACK instead
+                switch (message.charAt(0)) {
+                    case 'W': list.add(message.substring(2,message.length())); out.writeObject("ACK"); break;
+                    case 'R': out.writeObject("ACK"); break;
+                    default: System.out.println("<backup> Unrecognised query"); out.writeObject("Unrecognised query!");
+                }
+                System.out.println("<backup> Current state: "+list.getList());
+            }
+        } catch (ClassNotFoundException e) {
+            System.out.println("Unrecognised message recieved!");
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            System.out.println("Some error occured:");
+            e.printStackTrace();
+        }
+    }
+}
+
+class BadThreadPool {
+    public static final ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 }

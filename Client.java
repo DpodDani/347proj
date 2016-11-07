@@ -23,6 +23,7 @@ public class Client {
             out.writeObject(send);
             String message = (String) in.readObject();
             System.out.println("Recieved: "+message);
+            kkSocket.close();
 
         }   catch (ClassNotFoundException e) {
             System.out.println("Read object was not of the expected class");
