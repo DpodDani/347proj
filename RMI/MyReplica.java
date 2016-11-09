@@ -13,7 +13,7 @@ import java.util.*;
 import java.io.File;
 import java.io.*;
 
-public class MyReplica extends UnicastRemoteObject implements Replica {
+public class MyReplica implements Replica {
     
     ArrayList<String> database = new ArrayList<String>();
     static boolean isPrimary = false;
@@ -42,36 +42,29 @@ public class MyReplica extends UnicastRemoteObject implements Replica {
 		System.err.println("Could not create primary");
 	    }
 	}
-	System.out.println(Integer.parseInt(new File("/proc/self").getCanonicalFile().getName()));
+	//System.out.println(Integer.parseInt(new File("/proc/self").getCanonicalFile().getName()));
 	System.out.println("Service started");
 	System.out.println("Primary status: " + isPrimary);
-
-	Runtime.getRuntime().addShutdownHook(new Thread()
-	{
-	    @Override
-	    public void run(){
-		System.out.println("Shutdown hook ran!");
-		System.out.println("Closed Primary: " + isPrimary);
-	    }
-	});
-
-	while (true) {
-	    Thread.sleep(1000);
-	}
 
     }
 
 
     public static void rebindRegistryEntry(String nodeName) throws RemoteException{
 	try {
-	    Registry registry = LocateRegistry.getRegistry(1099);
-	    // Creates a remote interface object
+	    int PORT = (nodeName == "Primary") ? 1099 : 1100;
 	    MyReplica node = new MyReplica();
+	    RMIClientSocketFactory csf = new ClientSocketFactory();
+	    RMIServerSocketFactory ssf = new ServerSocketFactory();
+	    Replica stub = (Replica) UnicastRemoteObject.exportObject(node, 0, csf, ssf);
+
+	    LocateRegistry.createRegistry(PORT);
+	    Registry registry = LocateRegistry.getRegistry(PORT);
 	    // Binds it in the registry <-- this is where the Primary or Backup are registered in the registry
-	    registry.rebind(nodeName, node);	    
-	    node.join("Primary");
+	    registry.rebind(nodeName, node);
+	    System.out.println(nodeName + " bound in registry");
+	    //node.join("Primary");
 	} catch (Exception e) {
-	    System.err.println(nodeName + " is not free in the registry");
+	    System.err.println(nodeName + " is not bound in the registry");
 	    e.printStackTrace();
 	}
     }    
