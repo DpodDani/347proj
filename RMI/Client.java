@@ -26,22 +26,24 @@ public class Client{
 	    // Client looks for the Primary node in the registry
 	    Replica object = (Replica) reg.lookup("Primary");
 	    // Client performs a couple of write/read transactions
-	    object.write("Daniel ");
-	    object.write("is ");
-	    object.write("tall");
+	    object.write("Daniel ",Values.CLIENT);
+	    object.write("is ", Values.CLIENT);
+	    object.write("tall", Values.CLIENT);
 	    System.out.println(object.read());
 	}catch(Exception e){
+			System.out.println(e);
 	    System.err.println("Client couldn't connect Primary node in registry");
 	    // If the Client cannot find the Primary node in the registry, it assumes the Primary node is down and therefore forwards the request to the Backup node
 	    try{
 		Registry reg = LocateRegistry.getRegistry(1100);
 		Replica object = (Replica) reg.lookup("Backup");
-		object.write("Daniel ");
-		object.write("is ");
-		object.write("tall");
+		object.write("Daniel ", Values.CLIENT);
+		object.write("is ", Values.CLIENT);
+		object.write("tall", Values.CLIENT);
 		System.out.println(object.read());
 	    }catch(Exception p){
-		System.err.println("Client couldn't connect to Backup node in registry");
+	    	System.out.println(p);
+				System.err.println("Client couldn't connect to Backup node in registry");
 	    }
 	}
     }

@@ -9,7 +9,7 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 
 public interface TransactionHandler extends Remote {
-    boolean write(String word) throws RemoteException;
+    boolean write(String word, int sender) throws RemoteException;
     String read() throws RemoteException;
 
 }

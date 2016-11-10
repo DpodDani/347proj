@@ -24,6 +24,7 @@ public class MyReplica implements Replica {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
+    	System.out.println("I'm in main method bitchhhhhh");
 	// If a Primary node already exists in the registry, a Backup node is created, otherwise a Primary node is created
 	// Note: the lookup() function returns an error when it cannot find the specified hostname in the registry. The presence of this error is used as an indicator for whether a Primary node already exists in the registry.
     	try {
@@ -58,7 +59,19 @@ public class MyReplica implements Replica {
 	    // Binds it in the registry <-- this is where the Primary or Backup are registered in the registry
 	    registry.rebind(nodeName, stub);
 	    System.out.println(nodeName + " bound in registry");
+
 	    //node.join("Primary");
+	} catch (ExportException e){
+			System.out.println("Port already created, rebinding "+nodeName );
+			int PORT = (nodeName == "Primary") ? 1099 : 1100;
+			MyReplica node = new MyReplica();
+			RMIClientSocketFactory csf = new ClientSocketFactory();
+	    RMIServerSocketFactory ssf = new ServerSocketFactory();
+	    Replica stub = (Replica) UnicastRemoteObject.exportObject(node, 0, csf, ssf);
+	    Registry registry = LocateRegistry.getRegistry(PORT);
+	    registry.rebind(nodeName, stub);
+	    System.out.println(nodeName + " bound in registry");
+
 	} catch (Exception e) {
 	    System.err.println(nodeName + " is not bound in the registry");
 	    e.printStackTrace();
@@ -66,11 +79,23 @@ public class MyReplica implements Replica {
     }    
     
     //TODO: Activate the kill function only when the Primary is dead.
-    public boolean write (String data) {
-	database.add(data);
-	System.out.println("isPrimary status: " + isPrimary);
-	if (!isPrimary) kill();
-	return true;
+    public boolean write (String data, int sender) {
+			database.add(data);
+			System.out.println("isPrimary status: " + isPrimary);
+			//LocateRegistry.createRegistry();
+			if(isPrimary){
+				try{
+					Registry reg = LocateRegistry.getRegistry(1100);
+					Replica object = (Replica) reg.lookup("Backup");
+					object.write(data, Values.PRIMARY);
+				}catch(Exception e){
+
+				}
+				
+			}
+			if (!isPrimary && sender == Values.CLIENT) kill();
+
+			return true;
     }
 
     public String read() {
@@ -123,6 +148,7 @@ public class MyReplica implements Replica {
 	    Replica backupStub = (Replica) terminatorRegistry.lookup("Backup");
 	    System.out.println("Obtained terminator stub");
 	    victimRegistry.rebind("Primary", backupStub);
+	    terminatorRegistry.unbind("Backup");
 	    System.out.println("Rebinded terminator into victim registry");
 	    isPrimary = true;
 	    System.out.println("Backup has replaced Primary");
