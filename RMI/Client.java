@@ -16,6 +16,9 @@ public class Client{
 
     public static void main(String[] args){
 
+	// 1099 = Primary
+	// 1100 = Backup
+
 	try{
 	    // The idea is that the registry will be located at one port and all clients will accessing this one port
 	    // Let me know if this is the wrong idea
