@@ -10,14 +10,11 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.net.*;
-
+import java.io.*;
 
 public class Client{
 
     public static void main(String[] args){
-
-	// 1099 = Primary
-	// 1100 = Backup
 
 	try{
 	    // The idea is that the registry will be located at one port and all clients will accessing this one port
@@ -29,8 +26,9 @@ public class Client{
 	    object.write("Daniel ");
 	    object.write("is ");
 	    object.write("tall");
-	    System.out.println(object.read());
+	    System.out.println(object.read()); 
 	}catch(Exception e){
+	    e.printStackTrace();
 	    System.err.println("Client couldn't connect Primary node in registry");
 	    // If the Client cannot find the Primary node in the registry, it assumes the Primary node is down and therefore forwards the request to the Backup node
 	    try{

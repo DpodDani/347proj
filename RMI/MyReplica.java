@@ -2,7 +2,7 @@
  * This is the implementation for the Replica class. The Replica is responsible for creating a Primary node or a Backup node when necessary. The criteria right now: create a Primary node unless a Primary node already exists. This class also contains the fundamental functions for a Primary-Backup protocol.
  *
  * @author Qudus Animashaun, Daniel Namu-Fetha
- * @version 2.0
+ * @version 3.0
  */
 
 import java.rmi.*;
@@ -12,11 +12,14 @@ import java.rmi.server.*;
 import java.util.*;
 import java.io.File;
 import java.io.*;
+import java.net.*;
 
 public class MyReplica implements Replica {
     
     ArrayList<String> database = new ArrayList<String>();
     static boolean isPrimary = false;
+    private static Replica myStub;
+    private static Registry exportedRegistry;
 
     public MyReplica() throws RemoteException{
 	super();
@@ -42,6 +45,9 @@ public class MyReplica implements Replica {
 		System.err.println("Could not create primary");
 	    }
 	}
+
+	
+
     }
 
 
@@ -51,14 +57,15 @@ public class MyReplica implements Replica {
 	    MyReplica node = new MyReplica();
 	    RMIClientSocketFactory csf = new ClientSocketFactory();
 	    RMIServerSocketFactory ssf = new ServerSocketFactory();
-	    Replica stub = (Replica) UnicastRemoteObject.exportObject(node, 0, csf, ssf);
-
-	    LocateRegistry.createRegistry(PORT);
+	    Replica stub = (Replica) UnicastRemoteObject.exportObject(node, PORT);
+	    myStub = node;
+	    exportedRegistry = LocateRegistry.createRegistry(PORT);
 	    Registry registry = LocateRegistry.getRegistry(PORT);
 	    // Binds it in the registry <-- this is where the Primary or Backup are registered in the registry
 	    registry.rebind(nodeName, stub);
 	    System.out.println(nodeName + " bound in registry");
 	    //node.join("Primary");
+	 
 	} catch (Exception e) {
 	    System.err.println(nodeName + " is not bound in the registry");
 	    e.printStackTrace();
@@ -110,7 +117,29 @@ public class MyReplica implements Replica {
 
     // TODO: Put victim on terminator's port after killing victim
     public void kill() {
-	int victimPORT = (!isPrimary) ? 1099 : 1100;
+
+	int pPORT = 1099;
+	int bPORT = 1100;
+
+	try {
+	    Registry registry = LocateRegistry.getRegistry(1100);
+	    Replica backupStub = (Replica) registry.lookup("Backup");
+	    System.out.println("Obtained registry");
+	    UnicastRemoteObject.unexportObject(myStub, true);
+	    System.out.println("Unexported registry");
+	    Replica stub = (Replica) UnicastRemoteObject.exportObject(backupStub, pPORT);
+	    System.out.println("Exported object to primary port");
+	    LocateRegistry.createRegistry(1099);
+	    Registry prim = LocateRegistry.getRegistry(1099);
+	    prim.rebind("Primary", stub);
+	    registry.unbind("Backup");
+	    UnicastRemoteObject.unexportObject(exportedRegistry, true);
+	    
+	} catch (Exception e) {
+	    System.err.println("Kill function error: " + e.getMessage());
+	}
+
+	/*int victimPORT = (!isPrimary) ? 1099 : 1100;
 	System.out.println("Victim PORT: " + victimPORT);
 	int terminatorPORT = (!isPrimary) ? 1100 : 1099;
 	System.out.println("Terminator PORT: " + terminatorPORT);
@@ -128,7 +157,7 @@ public class MyReplica implements Replica {
 	    System.out.println("Backup has replaced Primary");
 	} catch (Exception e) {
 	    System.err.println("Kill function error: " + e.getMessage());
-	}
+	}*/
     }
 
 }
