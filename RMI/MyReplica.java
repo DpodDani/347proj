@@ -65,8 +65,10 @@ public class MyReplica implements Replica {
 	    // Binds it in the registry <-- this is where the Primary or Backup are registered in the registry
 	    registry.rebind(nodeName, stub);
 	    System.out.println(nodeName + " bound in registry");
-	    //node.join("Primary");
+	    node.join("Primary");
 	 
+	}catch(ExportException e){
+		System.err.println("The back up is already bounded");
 	} catch (Exception e) {
 	    System.err.println(nodeName + " is not bound in the registry");
 	    e.printStackTrace();
@@ -74,12 +76,27 @@ public class MyReplica implements Replica {
     }    
     
     //TODO: Activate the kill function only when the Primary is dead.
-    public boolean write (String data) {
-	System.out.println("Entered write function");
-	database.add(data);
-	System.out.println("isPrimary status: " + isPrimary);
-	if (!isPrimary) kill();
-	return true;
+    public boolean write (String data, int sender) {
+    	
+			
+			System.out.println("isPrimary status: " + isPrimary);
+			//LocateRegistry.createRegistry();
+			
+			if(isPrimary){
+				database.add(data);
+				try{
+					Registry reg = LocateRegistry.getRegistry(1100);
+					Replica object = (Replica) reg.lookup("Backup");
+					if (object != null)object.write(data, Values.PRIMARY);
+				}catch(Exception e){
+					System.err.println("The back up is not joined yet");
+				}
+				
+			}
+			if (!isPrimary && sender == Values.CLIENT) kill();
+			
+
+			return true;
     }
 
     public String read() {
