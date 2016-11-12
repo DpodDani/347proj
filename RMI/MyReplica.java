@@ -78,8 +78,12 @@ public class MyReplica implements Replica {
     //TODO: Activate the kill function only when the Primary is dead.
     public boolean write (String data, int sender) {
     	
+			if(isPrimary){
+				System.out.println("<Primary>: Received "+data);
+			}else{
+				System.out.println("<Backup>: Received "+data);
+			}
 			
-			System.out.println("isPrimary status: " + isPrimary);
 			//LocateRegistry.createRegistry();
 			
 			if(isPrimary){
