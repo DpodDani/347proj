@@ -100,13 +100,7 @@ public class MyReplica implements Replica {
     }
 
     public String read() {
-	StringBuilder sb = new StringBuilder();
-	sb.append("[");
-	for(String s: database){
-	    sb.append(s +", ");
-	}
-	return (sb.length() > 0) ? sb.substring(0, sb.length() - 2) + "]" : "";
- 
+	return Arrays.toString(database.toArray());
     }
 
     public void join(String primary){
