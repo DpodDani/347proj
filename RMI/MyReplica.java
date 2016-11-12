@@ -59,13 +59,14 @@ public class MyReplica implements Replica {
 	    RMIClientSocketFactory csf = new ClientSocketFactory();
 	    RMIServerSocketFactory ssf = new ServerSocketFactory();
 	    Replica stub = (Replica) UnicastRemoteObject.exportObject(node, PORT);
+	    System.out.println("PORT: " + PORT);
 	    myStub = node;
 	    exportedRegistry = LocateRegistry.createRegistry(PORT);
 	    Registry registry = LocateRegistry.getRegistry(PORT);
 	    // Binds it in the registry <-- this is where the Primary or Backup are registered in the registry
 	    registry.rebind(nodeName, stub);
 	    System.out.println(nodeName + " bound in registry");
-	    node.join("Primary");
+	    //node.join("Primary");
 	 
 	}catch(ExportException e){
 		System.err.println("The back up is already bounded");
@@ -77,26 +78,35 @@ public class MyReplica implements Replica {
     
     //TODO: Activate the kill function only when the Primary is dead.
     public boolean write (String data, int sender) {
-    	
 			
-			System.out.println("isPrimary status: " + isPrimary);
-			//LocateRegistry.createRegistry();
-			
-			if(isPrimary){
-				database.add(data);
-				try{
-					Registry reg = LocateRegistry.getRegistry(1100);
-					Replica object = (Replica) reg.lookup("Backup");
-					if (object != null)object.write(data, Values.PRIMARY);
-				}catch(Exception e){
-					System.err.println("The back up is not joined yet");
-				}
-				
-			}
-			if (!isPrimary && sender == Values.CLIENT) kill();
-			
+	System.out.println("isPrimary status: " + isPrimary);
+	String writer = (isPrimary) ? "Primary" : "Backup";
+	System.out.println(writer + " writing to database: " + data);
+	
+	if(!isPrimary && sender == Values.PRIMARY) database.add(data);
 
-			return true;
+	if(isPrimary){
+	    database.add(data);
+	    Boolean propSuccess = propogate(data);
+	    System.out.println("Propogate success: " + propSuccess);
+	}
+	if (!isPrimary && sender == Values.CLIENT) kill();
+	
+
+	return true;
+    }
+
+    private boolean propogate(String data) {
+	try {
+	    Registry reg = LocateRegistry.getRegistry(1100);
+	    Replica backupObj = (Replica) reg.lookup("Backup");
+	    if (backupObj != null) backupObj.write(data, Values.PRIMARY);
+	    System.out.println("Backup database: " + backupObj.read());
+	} catch (Exception e) {
+	    System.err.println("Propogation error: " + e.getMessage());
+	    return false;
+	}
+	return true;
     }
 
     public String read() {
@@ -141,10 +151,11 @@ public class MyReplica implements Replica {
 	    UnicastRemoteObject.unexportObject(myStub, true); // unexport backup stub from old RMI port
 	    System.out.println("Unexported Backup stub from RMI");
 	    Replica stub = (Replica) UnicastRemoteObject.exportObject(this, pPORT); // export backup stub to new RMI port
+	    myStub = stub;
 	    System.out.println("Exported Backup to primary port");
 	    
 	    UnicastRemoteObject.unexportObject(exportedRegistry, true); // unexport backup registry from old RMI port
-	    LocateRegistry.createRegistry(1099);
+	    exportedRegistry = LocateRegistry.createRegistry(1099);
 	    Registry prim = LocateRegistry.getRegistry(1099);
 	    prim.rebind("Primary", stub);
 	    System.out.println("New Primary Registry created");
