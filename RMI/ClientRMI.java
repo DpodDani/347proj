@@ -7,17 +7,19 @@ import java.rmi.registry.Registry;
 import java.util.*;
  
 public class ClientRMI {
-    public static void main(String[] args) throws IOException {
-         
+
+    private static String logged=null;
+
+    public static void inputMethod(){
         InputStream is = null;
         BufferedReader br = null;
         
         try {
 
             Registry reg = LocateRegistry.getRegistry(1099);
-                // Client looks for the Primary node in the registry
-                System.out.println(Arrays.toString(reg.list()));
-                Replica object = (Replica) reg.lookup("Primary");
+            // Client looks for the Primary node in the registry
+            System.out.println(Arrays.toString(reg.list()));
+            Replica object = (Replica) reg.lookup("Primary");
             is = System.in;
             br = new BufferedReader(new InputStreamReader(is));
             System.out.println("Please enter query - 'R:' or 'W:' <item to add>'");
@@ -44,6 +46,7 @@ public class ClientRMI {
                             break;
                         case "W:":
                             System.out.print("<client>: ");
+                            logged = line.substring(3);
                             object.write(line.substring(3), Values.CLIENT);
                             break;
                         default:
@@ -56,11 +59,16 @@ public class ClientRMI {
                 
             }
             
-        }
-        catch (IOException ioe) {
-            System.out.println("Exception while reading input " + ioe);
         }catch (Exception e){
-            e.printStackTrace();
+            try{
+                Registry reg = LocateRegistry.getRegistry(1100);
+                Replica object = (Replica) reg.lookup("Backup");
+                if(object != null)object.write(logged, Values.CLIENT);
+                inputMethod();
+            }catch(Exception p){
+
+            }
+
         }
         finally {
             // close the streams using close method
@@ -74,5 +82,10 @@ public class ClientRMI {
             }
 
         }
+    }
+
+    public static void main(String[] args) throws IOException {
+         inputMethod();
+
     }
 }
