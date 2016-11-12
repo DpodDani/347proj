@@ -11,6 +11,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.net.*;
 import java.io.*;
+import java.util.*;
 
 public class Client{
 
@@ -21,7 +22,9 @@ public class Client{
 	    // Let me know if this is the wrong idea
 	    Registry reg = LocateRegistry.getRegistry(1099);
 	    // Client looks for the Primary node in the registry
+	    System.out.println(Arrays.toString(reg.list()));
 	    Replica object = (Replica) reg.lookup("Primary");
+	    if (object != null) System.out.println("Object exists");
 	    // Client performs a couple of write/read transactions
 	    object.write("Daniel ");
 	    object.write("is ");

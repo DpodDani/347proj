@@ -13,6 +13,7 @@ import java.util.*;
 import java.io.File;
 import java.io.*;
 import java.net.*;
+import java.util.*;
 
 public class MyReplica implements Replica {
     
@@ -74,6 +75,7 @@ public class MyReplica implements Replica {
     
     //TODO: Activate the kill function only when the Primary is dead.
     public boolean write (String data) {
+	System.out.println("Entered write function");
 	database.add(data);
 	System.out.println("isPrimary status: " + isPrimary);
 	if (!isPrimary) kill();
@@ -124,40 +126,25 @@ public class MyReplica implements Replica {
 	try {
 	    Registry registry = LocateRegistry.getRegistry(1100);
 	    Replica backupStub = (Replica) registry.lookup("Backup");
+	    MyReplica node = this;
 	    System.out.println("Obtained registry");
 	    UnicastRemoteObject.unexportObject(myStub, true);
 	    System.out.println("Unexported registry");
-	    Replica stub = (Replica) UnicastRemoteObject.exportObject(backupStub, pPORT);
+	    Replica stub = (Replica) UnicastRemoteObject.exportObject(node, pPORT);
 	    System.out.println("Exported object to primary port");
+	    
+	    registry.unbind("Backup");
+	    UnicastRemoteObject.unexportObject(exportedRegistry, true);
 	    LocateRegistry.createRegistry(1099);
 	    Registry prim = LocateRegistry.getRegistry(1099);
 	    prim.rebind("Primary", stub);
-	    registry.unbind("Backup");
-	    UnicastRemoteObject.unexportObject(exportedRegistry, true);
-	    
+	    System.out.println("New Primary Registry created");
+	    System.out.println("Kill list: " + Arrays.toString(prim.list()));
+	    isPrimary = true;
 	} catch (Exception e) {
 	    System.err.println("Kill function error: " + e.getMessage());
 	}
 
-	/*int victimPORT = (!isPrimary) ? 1099 : 1100;
-	System.out.println("Victim PORT: " + victimPORT);
-	int terminatorPORT = (!isPrimary) ? 1100 : 1099;
-	System.out.println("Terminator PORT: " + terminatorPORT);
-	try {
-	    LocateRegistry.createRegistry(victimPORT);
-	    Registry victimRegistry = LocateRegistry.getRegistry(victimPORT);
-	    System.out.println("Obtained victim registry");
-	    Registry terminatorRegistry = LocateRegistry.getRegistry(terminatorPORT);
-	    System.out.println("Obtained terminator registry");
-	    Replica backupStub = (Replica) terminatorRegistry.lookup("Backup");
-	    System.out.println("Obtained terminator stub");
-	    victimRegistry.rebind("Primary", backupStub);
-	    System.out.println("Rebinded terminator into victim registry");
-	    isPrimary = true;
-	    System.out.println("Backup has replaced Primary");
-	} catch (Exception e) {
-	    System.err.println("Kill function error: " + e.getMessage());
-	}*/
     }
 
 }
