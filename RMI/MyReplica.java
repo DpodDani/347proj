@@ -117,30 +117,27 @@ public class MyReplica implements Replica {
 			}
     }
 
-    // TODO: Put victim on terminator's port after killing victim
+    // TODO: If the Primary calls kill, that's a signal for it to start logging its messages for when the backup is restarted
     public void kill() {
 
 	int pPORT = 1099;
 	int bPORT = 1100;
 
 	try {
-	    Registry registry = LocateRegistry.getRegistry(1100);
+	    Registry registry = LocateRegistry.getRegistry(bPORT);
 	    Replica backupStub = (Replica) registry.lookup("Backup");
-	    MyReplica node = this;
-	    System.out.println("Obtained registry");
-	    UnicastRemoteObject.unexportObject(myStub, true);
-	    System.out.println("Unexported registry");
-	    Replica stub = (Replica) UnicastRemoteObject.exportObject(node, pPORT);
-	    System.out.println("Exported object to primary port");
+	    System.out.println("Obtained Backup registry");
+	    UnicastRemoteObject.unexportObject(myStub, true); // unexport backup stub from old RMI port
+	    System.out.println("Unexported Backup stub from RMI");
+	    Replica stub = (Replica) UnicastRemoteObject.exportObject(this, pPORT); // export backup stub to new RMI port
+	    System.out.println("Exported Backup to primary port");
 	    
-	    registry.unbind("Backup");
-	    UnicastRemoteObject.unexportObject(exportedRegistry, true);
+	    UnicastRemoteObject.unexportObject(exportedRegistry, true); // unexport backup registry from old RMI port
 	    LocateRegistry.createRegistry(1099);
 	    Registry prim = LocateRegistry.getRegistry(1099);
 	    prim.rebind("Primary", stub);
 	    System.out.println("New Primary Registry created");
-	    System.out.println("Kill list: " + Arrays.toString(prim.list()));
-	    isPrimary = true;
+	    isPrimary = true; // the backup node is now a primary node
 	} catch (Exception e) {
 	    System.err.println("Kill function error: " + e.getMessage());
 	}
