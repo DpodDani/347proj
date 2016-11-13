@@ -86,7 +86,7 @@ public class MyReplica implements Replica {
 	}
     }    
     
-    public boolean write (String data, int sender) {
+    public boolean write (String data, Values  sender) {
 			
 	String writer = (isPrimary) ? "Primary" : "Backup";
 	System.out.println(writer + " writing to database: " + data);
