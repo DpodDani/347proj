@@ -17,12 +17,14 @@ public class Client{
 
     public static void main(String[] args){
 
-    	
+	final int pPORT = Values.PRIMARY.getValue();
+	final int bPORT = Values.BACKUP.getValue();
+   	
 
 	try{
 	    // The idea is that the registry will be located at one port and all clients will accessing this one port
 	    // Let me know if this is the wrong idea
-	    Registry reg = LocateRegistry.getRegistry(1099);
+	    Registry reg = LocateRegistry.getRegistry(pPORT);
 	    // Client looks for the Primary node in the registry
 	    System.out.println(Arrays.toString(reg.list()));
 	    Replica object = (Replica) reg.lookup("Primary");
@@ -39,7 +41,7 @@ public class Client{
 	    System.err.println("Client couldn't connect Primary node in registry");
 	    // If the Client cannot find the Primary node in the registry, it assumes the Primary node is down and therefore forwards the request to the Backup node
 	    try{
-		Registry reg = LocateRegistry.getRegistry(1100);
+		Registry reg = LocateRegistry.getRegistry(bPORT);
 		Replica object = (Replica) reg.lookup("Backup");
 
 		if(object!=null){

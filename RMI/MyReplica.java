@@ -21,6 +21,8 @@ public class MyReplica implements Replica {
     static boolean isPrimary = false;
     private static Replica myStub; // Keeps track of the object exported to the RMI registry (so we can unexport it when need be)
     private static Registry exportedRegistry; // Keeps track of the registry that is exported to the RMI registry (upon its creation)
+	private static final int pPORT = Values.PRIMARY.getValue();
+	private static final int bPORT = Values.BACKUP.getValue();
 
     public MyReplica() throws RemoteException{
 	super();
@@ -31,7 +33,7 @@ public class MyReplica implements Replica {
 	// If a Primary node already exists in the registry, a Backup node is created, otherwise a Primary node is created
 	// Note: the lookup() function returns an error when it cannot find the specified hostname in the registry. The presence of this error is used as an indicator for whether a Primary node already exists in the registry.
     	try {
-	    Registry registry = LocateRegistry.getRegistry(1099);
+	    Registry registry = LocateRegistry.getRegistry(pPORT);
 	    registry.lookup("Primary");
 	    System.out.println("Creating backup");
 	    bindRegistryEntry("Backup");
@@ -65,7 +67,7 @@ public class MyReplica implements Replica {
 
     public static void bindRegistryEntry(String nodeName) throws RemoteException{
 	try {
-	    int PORT = (nodeName == "Primary") ? 1099 : 1100;
+	    int PORT = (nodeName == "Primary") ? pPORT : bPORT;
 	    MyReplica node = new MyReplica();
 	    Replica stub = (Replica) UnicastRemoteObject.exportObject(node, PORT);
 	    System.out.println("PORT: " + PORT);
@@ -115,7 +117,7 @@ public class MyReplica implements Replica {
 
     private boolean propogate(String data) {
 	try {
-	    Registry reg = LocateRegistry.getRegistry(1100);
+	    Registry reg = LocateRegistry.getRegistry(bPORT);
 	    Replica backupObj = (Replica) reg.lookup("Backup");
 	    if (backupObj != null) backupObj.write(data, Values.PRIMARY);
 	} catch (Exception e) {
@@ -133,7 +135,7 @@ public class MyReplica implements Replica {
     public void join(String primary){
     	if(!isPrimary){
     		try{
-	    		Registry reg = LocateRegistry.getRegistry(1099);
+	    		Registry reg = LocateRegistry.getRegistry(pPORT);
 		    	Replica object = (Replica) reg.lookup(primary);
 		    	object.stateTransfer();
 		    }catch(Exception e){
@@ -147,7 +149,7 @@ public class MyReplica implements Replica {
     public void stateTransfer() {
 			if (isPrimary) {
 				try{
-					Registry reg = LocateRegistry.getRegistry(1099);
+					Registry reg = LocateRegistry.getRegistry(pPORT);
 		    	Replica object = (Replica) reg.lookup("Primary");
 		    	reg.rebind("Backup", object);	
 		    }catch(Exception e){
@@ -158,9 +160,6 @@ public class MyReplica implements Replica {
 
     // TODO: If the Primary calls kill, that's a signal for it to start logging its messages for when the backup is restarted
     public void kill() {
-
-	int pPORT = 1099;
-	int bPORT = 1100;
 
 	try {
 	    Registry registry = LocateRegistry.getRegistry(bPORT);
@@ -173,8 +172,8 @@ public class MyReplica implements Replica {
 	    System.out.println("Exported Backup to primary port");
 	    
 	    UnicastRemoteObject.unexportObject(exportedRegistry, true); // unexport backup registry from old RMI port <-- allows a new Backup registry to be created later (after our current Backup becomes the new Primary)
-	    exportedRegistry = LocateRegistry.createRegistry(1099);
-	    Registry prim = LocateRegistry.getRegistry(1099);
+	    exportedRegistry = LocateRegistry.createRegistry(pPORT);
+	    Registry prim = LocateRegistry.getRegistry(pPORT);
 	    prim.rebind("Primary", stub);
 	    System.out.println("New Primary Registry created");
 	    isPrimary = true; // the backup node is now a primary node
