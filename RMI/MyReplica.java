@@ -79,11 +79,9 @@ public class MyReplica implements Replica {
 	    // Binds it in the registry <-- this is where the Primary or Backup are registered in the registry
 	    registry.rebind(nodeName, stub);
 	    System.out.println(nodeName + " bound in registry");
-
-	    //node.join("Primary");
-	 
+		if(!isPrimary) node.join("Primary");
 	}catch(ExportException e){
-		System.err.println("The back up is already bounded");
+		System.err.println("bindRegistryEntry error: " + e.getMessage());
 	} catch (Exception e) {
 	    System.err.println(nodeName + " is not bound in the registry");
 	    e.printStackTrace();
@@ -109,7 +107,6 @@ public class MyReplica implements Replica {
 	    database.add(data);
 	    Boolean propSuccess = propogate(data);
 		// TODO: Add a way for Back to iterate through messageQueue upon creation
-		if (!propSuccess) messageQueue.add(data);
 	    System.out.println("Propogate success: " + propSuccess);
 	}
 
@@ -126,6 +123,7 @@ public class MyReplica implements Replica {
 	    if (backupObj != null) backupObj.write(data, Values.PRIMARY);
 	} catch (Exception e) {
 	    System.err.println("Propogation error: " + e.getMessage());
+		messageQueue.add(data);
 	    return false;
 	}
 	return true;
@@ -145,6 +143,7 @@ public class MyReplica implements Replica {
 				Replica backup = (Replica) reg.lookup("Backup");
 				boolean stateTransferSuccess = backup.stateTransfer(messageQueue);
 				System.out.println("State transfer success: " + stateTransferSuccess);
+				if(stateTransferSuccess) messageQueue.clear(); // empties the messageQueue upon a successful state transfer (from Primary to Backup)
 			} catch (Exception e) {
 				System.err.println("Primary couldn't transfer state");	
 			}
@@ -171,8 +170,14 @@ public class MyReplica implements Replica {
 	
     }
 
-    // TODO: Add an argument which enables Primary to pass the messageQueue to Backup
+    // NOTE: This function is called on an instance of the Backup node
     public boolean stateTransfer(ArrayList<String> messageQueue) {
+
+		System.out.println("Message queue to be transferred: " + Arrays.toString(messageQueue.toArray()));
+
+		for (String transaction : messageQueue) {
+			database.add(transaction);
+		}
 
 		return true;
 	
