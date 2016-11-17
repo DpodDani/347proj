@@ -7,9 +7,10 @@
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.*;
 
 public interface PrimBackup extends Remote {
-    void join (String backup) throws RemoteException;
-    void stateTransfer() throws RemoteException;
+    void join (String joinWithWho) throws RemoteException;
+    boolean stateTransfer(ArrayList<String> messageQueue) throws RemoteException;
     void kill() throws RemoteException;
 }

@@ -18,9 +18,11 @@ import java.util.*;
 public class MyReplica implements Replica {
     
     ArrayList<String> database = new ArrayList<String>();
+	ArrayList<String> messageQueue = new ArrayList<String>();
     static boolean isPrimary = false;
     private static Replica myStub; // Keeps track of the object exported to the RMI registry (so we can unexport it when need be)
     private static Registry exportedRegistry; // Keeps track of the registry that is exported to the RMI registry (upon its creation)
+	private boolean joinedWithOtherNode = false;
 	private static final int pPORT = Values.PRIMARY.getValue();
 	private static final int bPORT = Values.BACKUP.getValue();
 
@@ -106,6 +108,8 @@ public class MyReplica implements Replica {
 	if(isPrimary){
 	    database.add(data);
 	    Boolean propSuccess = propogate(data);
+		// TODO: Add a way for Back to iterate through messageQueue upon creation
+		if (!propSuccess) messageQueue.add(data);
 	    System.out.println("Propogate success: " + propSuccess);
 	}
 
@@ -132,8 +136,30 @@ public class MyReplica implements Replica {
     }
 
     // WIP - Function for enabling Backup node to join Primary after restart
-    public void join(String primary){
-    	if(!isPrimary){
+    public void join(String joinWithWho){
+		
+		if (isPrimary) {
+			joinedWithOtherNode = true;
+			try {
+				Registry reg = LocateRegistry.getRegistry(bPORT);
+				Replica backup = (Replica) reg.lookup("Backup");
+				boolean stateTransferSuccess = backup.stateTransfer(messageQueue);
+				System.out.println("State transfer success: " + stateTransferSuccess);
+			} catch (Exception e) {
+				System.err.println("Primary couldn't transfer state");	
+			}
+		} else {
+			try {
+				// Gets Primary remote object and "joins" it	
+				Registry reg = LocateRegistry.getRegistry(pPORT);
+				Replica prim = (Replica) reg.lookup("Primary");
+				prim.join("Backup");
+			} catch (Exception e) {
+				System.err.println("Backup join error: " + e.getMessage());
+			}
+		}
+
+    	/*if(!isPrimary){
     		try{
 	    		Registry reg = LocateRegistry.getRegistry(pPORT);
 		    	Replica object = (Replica) reg.lookup(primary);
@@ -141,13 +167,18 @@ public class MyReplica implements Replica {
 		    }catch(Exception e){
 
 		    }
-    	}
+    	}*/
 	
     }
 
-    // WIP - Function for Primary node to transfer its current state to a newly joined Backup node
-    public void stateTransfer() {
-			if (isPrimary) {
+    // TODO: Add an argument which enables Primary to pass the messageQueue to Backup
+    public boolean stateTransfer(ArrayList<String> messageQueue) {
+
+		return true;
+	
+			// If the state transfer is successful, then return true, otherwise return false
+
+			/*if (isPrimary) {
 				try{
 					Registry reg = LocateRegistry.getRegistry(pPORT);
 		    	Replica object = (Replica) reg.lookup("Primary");
@@ -155,7 +186,7 @@ public class MyReplica implements Replica {
 		    }catch(Exception e){
 		    	e.printStackTrace();
 		    }
-			}
+			}*/
     }
 
     // TODO: If the Primary calls kill, that's a signal for it to start logging its messages for when the backup is restarted
