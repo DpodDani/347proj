@@ -87,8 +87,14 @@ public class MyReplica implements Replica {
     }    
     
     public boolean write (String data, Values  sender) {
+			if(isPrimary){
+				System.out.println("<Primary>: Received "+data);
+			}else{
+				System.out.println("<Backup>: Received "+data);
+			}
 			
 	String writer = (isPrimary) ? "Primary" : "Backup";
+	System.out.print("<" + writer + ">: ");
 	System.out.println(writer + " writing to database: " + data);
 	
 	// This checks whether the call to the write function was made by the Primary node to propogate the Client's request
