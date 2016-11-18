@@ -13,5 +13,7 @@ import java.util.*;
 import java.rmi.Remote;
 
 public interface Replica extends PrimBackup, TransactionHandler {
-    
+
+  // boolean heartBeat() throws RemoteException;
+
 }
