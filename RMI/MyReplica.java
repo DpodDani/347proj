@@ -25,6 +25,9 @@ public class MyReplica implements Replica {
   private boolean joinedWithOtherNode = false;
   private static final int pPORT = Values.PRIMARY.getValue();
   private static final int bPORT = Values.BACKUP.getValue();
+  private static FileWriter writeR;
+  private static PrintWriter printer;
+  private static String writePath = "";
 
   public MyReplica() throws RemoteException{
     super();
@@ -53,9 +56,10 @@ public class MyReplica implements Replica {
       } catch (Exception f) {
           System.err.println("Could not create primary");
       }
+    } finally {
+        writePath = (isPrimary) ? "primary_db.txt" : "backup_db.txt";
+        sendHeartBeat();
     }
-
-    sendHeartBeat();
 
   }
 
@@ -111,7 +115,7 @@ public class MyReplica implements Replica {
           System.err.println("Thread sleep error :" + e.getMessage());
         }
       }
-      if (beatMissCounter == 3){
+      if (beatMissCounter == 2){
         if (isPrimary){
           // start logging transactions into messageQueue for when backup is running again
           System.err.println("Backup missed three heartbeats");
@@ -138,6 +142,10 @@ public class MyReplica implements Replica {
   }
 
   public boolean write (String data, Values  sender) {
+
+    boolean appendToFile = true;
+
+
     if(isPrimary){
       System.out.println("<Primary>: Received "+data);
     }else{
@@ -149,11 +157,39 @@ public class MyReplica implements Replica {
     System.out.println(writer + " writing to database: " + data);
 
     // This checks whether the call to the write function was made by the Primary node to propogate the Client's request
-    if(!isPrimary && sender == Values.PRIMARY) database.add(data);
+    if(!isPrimary && sender == Values.PRIMARY){
+      database.add(data);
+
+      try {
+        writeR = new FileWriter(writePath, appendToFile);
+        printer = new PrintWriter(writeR);
+        printer.print(data + "\n");
+        System.out.println("Successfully wrote to file".toUpperCase());
+      } catch (Exception e) {
+        System.err.println("Error writing to db file: " + e.getMessage());
+      } finally {
+
+        printer.close();
+      }
+
+    }
 
     // This ensures that the Client's request is handled by the Primary node and propogated to the Backup node
     if(isPrimary){
       database.add(data);
+
+      try {
+        writeR = new FileWriter(writePath, appendToFile);
+        printer = new PrintWriter(writeR);
+        printer.print(data + "\n");
+        System.out.println("Successfully wrote to file".toUpperCase());
+      } catch (Exception e) {
+        System.err.println("Error writing to db file: " + e.getMessage());
+      } finally {
+
+        printer.close();
+      }
+
       Boolean propSuccess = propogate(data);
       // TODO: Add a way for Back to iterate through messageQueue upon creation
       System.out.println("Propogate success: " + propSuccess);
