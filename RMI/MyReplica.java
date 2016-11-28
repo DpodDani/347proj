@@ -55,6 +55,8 @@ public class MyReplica implements Replica {
       }
     }
 
+    sendHeartBeat();
+
   }
 
   public static void bindRegistryEntry(String nodeName) throws RemoteException{
@@ -78,30 +80,62 @@ public class MyReplica implements Replica {
     }
   }
 
-  // public static void sendHeartBeat() {
-  //
-  //   while (true){
-  //     try {
-  //       Registry reg = LocateRegistry.getRegistry(bPORT);
-  //       Replica backup = (Replica) reg.lookup("Backup");
-  //       System.out.println("Sending heartbeat");
-  //       if (backup.heartBeat()) System.out.println("Heartbeat pulse succeeded!");
-  //     } catch (Exception e) {
-  //       System.err.println("Sending heartbeat error: " + e.getMessage());
-  //     } finally {
-  //       try {
-  //         Thread.sleep(5000);
-  //       } catch (Exception e) {
-  //         System.err.println("Thread sleep error :" + e.getMessage());
-  //       }
-  //     }
-  //   }
-  //
-  // }
-  //
-  // public boolean heartBeat() {
-  //   return true;
-  // }
+  public static void sendHeartBeat() {
+
+    String receiverName = "";
+    int receiverPort = 0;
+    int beatMissCounter = 0;
+
+    if (isPrimary) {
+      receiverName = "Backup";
+      receiverPort = bPORT;
+    } else {
+      receiverName = "Primary";
+      receiverPort = pPORT;
+    }
+
+    while (true){
+      try {
+        Registry reg = LocateRegistry.getRegistry(receiverPort);
+        Replica receiverObj = (Replica) reg.lookup(receiverName);
+        System.out.println("Sending heartbeat to: " + receiverName);
+        if (receiverObj.heartBeat()) System.out.println("Heartbeat to " + receiverName + " succeeded!");
+      } catch (Exception e) {
+        System.err.println("Error sending heart to: " + receiverName);
+        System.err.println("Sending heartbeat error: " + e.getMessage());
+        beatMissCounter += 1;
+      } finally {
+        try {
+          Thread.sleep(10000);
+        } catch (Exception e) {
+          System.err.println("Thread sleep error :" + e.getMessage());
+        }
+      }
+      if (beatMissCounter == 3){
+        if (isPrimary){
+          // start logging transactions into messageQueue for when backup is running again
+          System.err.println("Backup missed three heartbeats");
+          beatMissCounter = 0;
+        } else {
+          try{
+            Registry reg = LocateRegistry.getRegistry(bPORT);
+            Replica backup = (Replica) reg.lookup("Backup");
+            backup.kill();
+            beatMissCounter = 0;
+          } catch (Exception e) {
+              System.err.println("Lack of heartbeat kill error: " + e.getMessage());
+          } finally {
+            sendHeartBeat();
+          }
+        }
+      }
+    }
+
+  }
+
+  public boolean heartBeat() {
+    return true;
+  }
 
   public boolean write (String data, Values  sender) {
     if(isPrimary){
