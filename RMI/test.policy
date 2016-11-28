@@ -1,0 +1,6 @@
+grant {
+    permission java.net.SocketPermission "localhost:1101", "connect, resolve, listen";
+    permission java.net.SocketPermission "137.205.112.140:1101", "connect, resolve, listen";
+    permission java.net.SocketPermission "137.205.112.140:35244", "connect, resolve, listen";
+    permission java.net.SocketPermission "137.205.238.207:1100", "connect, resolve, listen";
+};
