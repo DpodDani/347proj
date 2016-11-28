@@ -27,6 +27,8 @@ public class MyReplica implements Replica {
   private static final int bPORT = Values.BACKUP.getValue();
   private static FileWriter writeR;
   private static PrintWriter printer;
+  private static FileReader readeR;
+  private static BufferedReader buffReader;
   private static String writePath = "";
 
   public MyReplica() throws RemoteException{
@@ -215,7 +217,30 @@ public class MyReplica implements Replica {
   }
 
   public String read() {
-    return Arrays.toString(database.toArray());
+
+    try{
+        readeR = new FileReader(writePath);
+    } catch (Exception e) {
+      System.err.println("Could find file to read from.");
+    }
+    buffReader = new BufferedReader(readeR);
+    ArrayList<String> buffer = new ArrayList<String>();
+
+    String data = "";
+
+    while (data != null) {
+      if (data != "") buffer.add(data);
+      try{
+        data = buffReader.readLine();
+      } catch (Exception e) {
+        System.err.println("Couldn't read line from file.");
+      }
+    }
+
+    System.out.println(Arrays.toString(buffer.toArray()));
+
+    return Arrays.toString(buffer.toArray());
+    //return Arrays.toString(database.toArray());
   }
 
   public void join(String joinWithWho){
