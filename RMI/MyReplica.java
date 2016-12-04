@@ -18,11 +18,10 @@ import java.util.*;
 public class MyReplica implements Replica {
 
   ArrayList<String> database = new ArrayList<String>();
-  // ArrayList<String> messageQueue = new ArrayList<String>();
+  ArrayList<String> messageQueue = new ArrayList<String>();
   static boolean isPrimary = false;
   private static Replica myStub; // Keeps track of the object exported to the RMI registry (so we can unexport it when need be)
   private static Registry exportedRegistry; // Keeps track of the registry that is exported to the RMI registry (upon its creation)
-  private boolean joinedWithOtherNode = false;
   private static final int pPORT = Values.PRIMARY.getValue();
   private static final int bPORT = Values.BACKUP.getValue();
   private static FileWriter writeR;
@@ -59,13 +58,13 @@ public class MyReplica implements Replica {
           System.err.println("Could not create primary");
       }
     } finally {
-        writePath = (isPrimary) ? "primary_db.txt" : "backup_db.txt";
         sendHeartBeat();
     }
 
   }
 
   public static void bindRegistryEntry(String nodeName) throws RemoteException{
+    writePath = (isPrimary) ? "primary_db.txt" : "backup_db.txt";
     try {
       int PORT = (nodeName == "Primary") ? pPORT : bPORT;
       MyReplica node = new MyReplica();
@@ -117,7 +116,7 @@ public class MyReplica implements Replica {
           System.err.println("Thread sleep error :" + e.getMessage());
         }
       }
-      if (beatMissCounter == 2){
+      if (beatMissCounter == 3){ // 3 heartbeats missed
         if (isPrimary){
           // start logging transactions into messageQueue for when backup is running again
           System.err.println("Backup missed three heartbeats");
@@ -161,17 +160,19 @@ public class MyReplica implements Replica {
     // This checks whether the call to the write function was made by the Primary node to propogate the Client's request
     if(!isPrimary && sender == Values.PRIMARY){
       database.add(data);
+      System.out.println("Write path: " + writePath);
 
       try {
         writeR = new FileWriter(writePath, appendToFile);
         printer = new PrintWriter(writeR);
         printer.print(data + "\n");
+		//printer.flush();
         System.out.println("Successfully wrote to file".toUpperCase());
       } catch (Exception e) {
         System.err.println("Error writing to db file: " + e.getMessage());
       } finally {
-
         printer.close();
+
       }
 
     }
@@ -192,7 +193,9 @@ public class MyReplica implements Replica {
         printer.close();
       }
 
-      Boolean propSuccess = propogate(data);
+      Boolean propSuccess = false;
+      propSuccess = propogate(data);
+      if (!propSuccess) messageQueue.add(data);
       // TODO: Add a way for Back to iterate through messageQueue upon creation
       System.out.println("Propogate success: " + propSuccess);
     }
@@ -246,12 +249,12 @@ public class MyReplica implements Replica {
   public void join(String joinWithWho){
 
     if (isPrimary) {
-      joinedWithOtherNode = true;
       try {
         Registry reg = LocateRegistry.getRegistry(bPORT);
         Replica backup = (Replica) reg.lookup("Backup");
-        boolean stateTransferSuccess = backup.stateTransfer(database);
+        boolean stateTransferSuccess = backup.stateTransfer(messageQueue);
         System.out.println("State transfer success: " + stateTransferSuccess);
+		if (stateTransferSuccess) messageQueue.clear();
       } catch (Exception e) {
         System.err.println("Primary couldn't transfer state");
       }
@@ -274,7 +277,7 @@ public class MyReplica implements Replica {
     System.out.println("Message queue to be transferred: " + Arrays.toString(messageQueue.toArray()));
 
     for (String transaction : messageQueue) {
-      database.add(transaction);
+      write(transaction, Values.PRIMARY);
     }
 
     return true;
