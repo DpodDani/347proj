@@ -59,6 +59,13 @@ public class MyReplica implements Replica {
 
   }
 
+  /**
+  * Based on the node being created, a log file is bound to it and the node is bode in the registry.
+  * The default ports for Primary and Backup node are handled in Values.java
+  *
+  * @author Qudus Animashaun, Daniel Namu-Fetha
+  * @param nodeName Name of node to be bound in the RMI registry
+  */
   public static void bindRegistryEntry(String nodeName) throws RemoteException{
     writePath = (isPrimary) ? "primary_db.txt" : "backup_db.txt";
     try {
@@ -81,6 +88,11 @@ public class MyReplica implements Replica {
     }
   }
 
+  /**
+  * Responsible for sending a heartbeat to both node by both nodes every 10 seconds. If the Primary node misses 3 heartbeats, the Backup assumes it is dead and will take over as the new Primary.
+  *
+  * @author Daniel Namu-Fetha
+  */
   public static void sendHeartBeat() {
 
     String receiverName = "";
@@ -95,6 +107,7 @@ public class MyReplica implements Replica {
       receiverPort = pPORT;
     }
 
+    // continuously sends out a heartbeat
     while (true){
       try {
         Registry reg = LocateRegistry.getRegistry(receiverPort);
@@ -107,17 +120,13 @@ public class MyReplica implements Replica {
         beatMissCounter += 1;
       } finally {
         try {
-          Thread.sleep(10000);
+          Thread.sleep(10000); // wait for 10 seconds
         } catch (Exception e) {
           System.err.println("Thread sleep error :" + e.getMessage());
         }
       }
       if (beatMissCounter == 3){ // 3 heartbeats missed
-        if (isPrimary){
-          // start logging transactions into messageQueue for when backup is running again
-          System.err.println("Backup missed three heartbeats");
-          beatMissCounter = 0;
-        } else {
+        if (!isPrimary){
           try{
             Registry reg = LocateRegistry.getRegistry(bPORT);
             Replica backup = (Replica) reg.lookup("Backup");
@@ -134,14 +143,21 @@ public class MyReplica implements Replica {
 
   }
 
+  // simply returns true to confirm liveliness
   public boolean heartBeat() {
     return true;
   }
 
+  /**
+  * Writes data to a local ArrayList and to a text file for the respective node.
+  *
+  * @author Qudus Animashaun, Daniel Namu-Fetha
+  * @param data   The data to be written
+  * @param sender The node that is sending this write request
+  */
   public boolean write (String data, Values  sender) {
 
     boolean appendToFile = true;
-
 
     if(isPrimary){
       System.out.println("<Primary>: Received "+data);
@@ -192,7 +208,6 @@ public class MyReplica implements Replica {
       Boolean propSuccess = false;
       propSuccess = propogate(data);
       if (!propSuccess) messageQueue.add(data);
-      // TODO: Add a way for Back to iterate through messageQueue upon creation
       System.out.println("Propogate success: " + propSuccess);
     }
 
@@ -202,6 +217,12 @@ public class MyReplica implements Replica {
     return true;
   }
 
+  /**
+  * Propogates any write statements received by the Primary node to the Backup node
+  *
+  * @author Qudus Animashaun, Daniel Namu-Fetha
+  * @param data   The data to be propogated
+  */
   private boolean propogate(String data) {
     try {
       Registry reg = LocateRegistry.getRegistry(bPORT);
@@ -215,6 +236,11 @@ public class MyReplica implements Replica {
     return true;
   }
 
+  /**
+  * Data is read from the Primary node's text file
+  *
+  * @author Qudus Animashaun, Daniel Namu-Fetha
+  */
   public String read() {
 
     try{
@@ -236,12 +262,15 @@ public class MyReplica implements Replica {
       }
     }
 
-    System.out.println(Arrays.toString(buffer.toArray()));
-
     return Arrays.toString(buffer.toArray());
-    //return Arrays.toString(database.toArray());
   }
 
+  /**
+  * This function is used by the Backup to tell the Primary that it has successfully restarted. Upon calling this function the Primary transfers a messageQueue (containing transactions missed by the Backup during down-time) to the Backup for it to catch up to the current state of the Primary node.
+  *
+  * @author Qudus Animashaun, Daniel Namu-Fetha
+  * @param joinWithWho The node that should handle the join function next
+  */
   public void join(String joinWithWho){
 
     if (isPrimary) {
@@ -272,6 +301,7 @@ public class MyReplica implements Replica {
 
     System.out.println("Message queue to be transferred: " + Arrays.toString(messageQueue.toArray()));
 
+    // iterates through messageQueue and processes misssed transactions
     for (String transaction : messageQueue) {
       write(transaction, Values.PRIMARY);
     }
@@ -280,7 +310,11 @@ public class MyReplica implements Replica {
 
   }
 
-  // TODO: If the Primary calls kill, that's a signal for it to start logging its messages for when the backup is restarted
+  /**
+  * This function is used by Backup to replace the Primary node. The Primary node is unbinded from its registry and then the Backup binds itself to that "primary" registry.
+  *
+  * @author Daniel Namu-Fetha
+  */
   public void kill() {
 
     try {
