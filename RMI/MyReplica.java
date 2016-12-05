@@ -50,10 +50,6 @@ public class MyReplica implements Replica {
       isPrimary = true;
       try {
         bindRegistryEntry("Primary");
-
-        // WIP - Heartbeat functionality
-        // sendHeartBeat();
-
       } catch (Exception f) {
           System.err.println("Could not create primary");
       }
